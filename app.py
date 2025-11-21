@@ -18,6 +18,7 @@ app = Flask(__name__)
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 ALLOWED_EXTENSIONS = {"txt", "log", "csv", "json"}
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def allowed_file(filename: str) -> bool:
@@ -50,10 +51,15 @@ def health():
         return jsonify({"status": "error", "db_error": str(e)}), 500
 
 
+
 @app.route("/openapi.json", methods=["GET"])
 def openapi_json():
-    return send_file("openapi.yaml", mimetype="application/json")
-
+    # kirim YAML tapi ZAP gak masalah, dia bisa baca YAML
+    return send_from_directory(
+        BASE_DIR,
+        "openapi.yaml",
+        mimetype="application/yaml"
+    )
 # =========================
 # 1. LOGIN (clean: parameterized + hashed password)
 # =========================

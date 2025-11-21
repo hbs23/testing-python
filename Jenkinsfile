@@ -4,6 +4,7 @@ pipeline {
     environment {
         // contoh: beda ENV untuk app
         APP_ENV = "${env.BRANCH_NAME == 'main' ? 'production' : 'staging'}"
+        PATH = "/var/jenkins_home/.local/bin:${env.PATH}"
     }
 
     stages {

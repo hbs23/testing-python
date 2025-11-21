@@ -187,18 +187,28 @@ pipeline {
             steps {
                   sh '''
                     mkdir -p reports
-                    chmod 777 reports
 
-                   docker run --rm \
+                    echo "[ZAP] create container..."
+                    CID=$(docker create \
                     -u 0:0 \
-                    -v "$(pwd)/reports:/zap/wrk" \
                     zaproxy/zap-stable \
                     zap-api-scan.py \
                         -t http://13.212.114.218:9500/openapi.json \
                         -f openapi \
-                        -J zap-api-report.json || true
+                        -J /zap/wrk/zap-api-report.json \
+                        -r /zap/wrk/zap-api-report.html)
 
-                    echo "[DEBUG] Isi folder reports setelah ZAP API:"
+                    echo "[ZAP] start scan (ID=$CID)..."
+                    docker start -a "$CID" || true
+
+                    echo "[ZAP] copy reports from container..."
+                    docker cp "$CID":/zap/wrk/zap-api-report.json reports/zap-api-report.json || true
+                    docker cp "$CID":/zap/wrk/zap-api-report.html reports/zap-api-report.html || true
+
+                    echo "[ZAP] remove container..."
+                    docker rm "$CID" || true
+
+                    echo "[DEBUG] Isi folder reports setelah ZAP:"
                     ls -lah reports || true
                 '''
             }

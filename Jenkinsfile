@@ -4,36 +4,82 @@ pipeline {
     environment {
         APP_ENV = "${env.BRANCH_NAME == 'main' ? 'production' : 'staging'}"
         
+        // DB info (secretnya jangan taruh sini)
         DB_HOST = "172.17.0.1"
         DB_NAME = "hasan_testing_db"
 
         // PATH untuk semgrep (pipx)
         PATH = "/var/jenkins_home/.local/bin:${env.PATH}"
-        IMAGE_TAG = ""
+
+        // Untuk sekarang image tetap latest
+        IMAGE_TAG = "latest"
     }
 
     stages {
 
+        /* ============================================================
+           CHECKOUT
+        ============================================================ */
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
 
-        stage('Build & Test') {
+        /* ============================================================
+           TRIVY FILESYSTEM SCAN (SCA)
+        ============================================================ */
+        stage('Trivy FS Scan') {
+            steps {
+                sh """
+                    mkdir -p reports
+                    echo "[TRIVY] Scanning filesystem..."
+                    trivy fs \
+                        --severity HIGH,CRITICAL \
+                        --exit-code 1 \
+                        --no-progress \
+                        --format json \
+                        --output reports/trivy-fs-report.json \
+                        .
+                """
+            }
+        }
+
+        /* ============================================================
+           DOCKER BUILD
+        ============================================================ */
+        stage('Build Docker Image') {
             steps {
                 script {
-                    echo "Building Docker image: vuln-flask-app:latest"
-
+                    echo "Building Docker image vuln-flask-app:${env.IMAGE_TAG}"
                     sh """
-                    docker build -t vuln-flask-app:latest .
+                        docker build -t vuln-flask-app:${env.IMAGE_TAG} .
                     """
                 }
             }
         }
 
         /* ============================================================
-           SONARQUBE
+           TRIVY IMAGE SCAN
+        ============================================================ */
+        stage('Trivy Image Scan') {
+            steps {
+                sh """
+                    mkdir -p reports
+                    echo "[TRIVY] Scanning Docker image vuln-flask-app:${env.IMAGE_TAG}"
+                    trivy image \
+                        --severity HIGH,CRITICAL \
+                        --exit-code 1 \
+                        --no-progress \
+                        --format json \
+                        --output reports/trivy-image-report.json \
+                        vuln-flask-app:${env.IMAGE_TAG}
+                """
+            }
+        }
+
+        /* ============================================================
+           SONARQUBE ANALYSIS
         ============================================================ */
         stage('SonarQube Analysis') {
             steps {
@@ -65,14 +111,15 @@ pipeline {
         stage('Semgrep - Generate SARIF') {
             steps {
                 sh '''
-                  mkdir -p reports
-                  semgrep scan \
-                    --config p/security-audit \
-                    --config p/owasp-top-ten \
-                    --config p/secrets \
-                    --sarif --output reports/semgrep.sarif \
-                    --metrics=off \
-                    . || true
+                    mkdir -p reports
+
+                    semgrep scan \
+                        --config p/security-audit \
+                        --config p/owasp-top-ten \
+                        --config p/secrets \
+                        --sarif --output reports/semgrep.sarif \
+                        --metrics=off \
+                        . || true
                 '''
             }
         }
@@ -80,51 +127,77 @@ pipeline {
         stage('Semgrep - Enforce Medium/High') {
             steps {
                 sh '''
-                  semgrep scan \
-                    --config p/security-audit \
-                    --config p/owasp-top-ten \
-                    --config p/secrets \
-                    --severity WARNING \
-                    --severity ERROR \
-                    --error \
-                    --metrics=off \
-                    .
+                    semgrep scan \
+                        --config p/security-audit \
+                        --config p/owasp-top-ten \
+                        --config p/secrets \
+                        --severity WARNING \
+                        --severity ERROR \
+                        --error \
+                        --metrics=off \
+                        .
                 '''
             }
         }
 
         /* ============================================================
-           DEPLOY STAGING / PRODUCTION
+           DEPLOY
         ============================================================ */
         stage('Deploy to STAGING') {
             when { branch 'staging' }
-            steps { echo "Deploy ke STAGING..." }
+            steps {
+                echo "Deploy ke STAGING..."
+                // Tambah step docker run staging kalau mau
+            }
         }
 
         stage('Deploy to PRODUCTION') {
             when { branch 'main' }
             steps {
-                echo "Deploy ke PRODUCTION..."
+                echo "Deploy ke PRODUCTION menggunakan vuln-flask-app:${env.IMAGE_TAG}"
 
                 sshagent(['SSH_Ubuntu_Server']) {
                     sh """
                         ssh -o StrictHostKeyChecking=no ubuntu@13.212.114.218 '
                             docker stop app-testing || true &&
                             docker rm app-testing || true &&
-                            docker run -d -p 9500:9500 --name app-testing vuln-flask-app:latest
-                    '
+                            docker run -d -p 9500:9500 --name app-testing vuln-flask-app:${env.IMAGE_TAG}
+                        '
                     """
                 }
+            }
+        }
+
+        /* ============================================================
+           ZAP DAST BASELINE
+        ============================================================ */
+        stage('DAST - ZAP Baseline Scan') {
+            when { branch 'main' }
+            steps {
+                sh """
+                    mkdir -p reports
+
+                    docker run --rm \
+                        -v \$(pwd)/reports:/zap/wrk \
+                        --network host \
+                        owasp/zap2docker-stable \
+                        zap-baseline.py \
+                            -t http://13.212.114.218:9500 \
+                            -r zap-report.html \
+                            -I
+                """
             }
         }
     }
 
     /* ============================================================
-       POST STEPS
+       POST STEPS (Artifacts)
     ============================================================ */
     post {
         always {
-            archiveArtifacts artifacts: 'reports/semgrep.sarif', fingerprint: true
+            archiveArtifacts artifacts: 'reports/*.json', fingerprint: true
+            archiveArtifacts artifacts: 'reports/*.sarif', fingerprint: true
+            archiveArtifacts artifacts: 'reports/*.html', fingerprint: true
         }
     }
 }

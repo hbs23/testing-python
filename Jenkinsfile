@@ -23,11 +23,10 @@ pipeline {
         stage('Build & Test') {
             steps {
                 script {
-                    env.IMAGE_TAG = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
-                    echo "Building Docker image: vuln-flask-app:${env.IMAGE_TAG}"
+                    echo "Building Docker image: vuln-flask-app:latest"
 
                     sh """
-                    docker build -t vuln-flask-app:${env.IMAGE_TAG} .
+                    docker build -t vuln-flask-app:latest .
                     """
                 }
             }
@@ -112,7 +111,7 @@ pipeline {
                         ssh -o StrictHostKeyChecking=no ubuntu@13.212.183.71 '
                             docker stop app-testing || true &&
                             docker rm app-testing || true &&
-                            docker run -d -p 9500:9500 --name app-testing vuln-flask-app:${env.IMAGE_TAG}
+                            docker run -d -p 9500:9500 --name app-testing vuln-flask-app:latest
                     '
                     """
                 }

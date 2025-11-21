@@ -180,6 +180,7 @@ pipeline {
 
                     docker run --rm \
                         -u 0:0 \
+                        -w /zap/wrk \
                         -v \$(pwd)/reports:/zap/wrk \
                         --network host \
                         ghcr.io/zaproxy/zaproxy \

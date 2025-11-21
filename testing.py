@@ -17,7 +17,7 @@ os.system(f"cat {filename}")
 
 # 3. Hardcoded Secrets
 #API_KEY = "1234567890-SECRET-KEY"
-API_KEY = "DEMO_KEY_1234567890_DEVELOPMENT_ONLY"
+API_KEY = "TESTING"
 # 4. Weak Hash
 user_pass = input("Enter your password: ")
 hashed = hashlib.md5(user_pass.encode()).hexdigest()

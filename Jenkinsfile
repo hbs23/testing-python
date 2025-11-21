@@ -197,9 +197,9 @@ pipeline {
     ============================================================ */
     post {
         always {
-            archiveArtifacts artifacts: 'reports/*.json', fingerprint: true
-            archiveArtifacts artifacts: 'reports/*.sarif', fingerprint: true
-            archiveArtifacts artifacts: 'reports/*.html', fingerprint: true
+            archiveArtifacts artifacts: 'reports/*.json', fingerprint: true, allowEmptyArchive: true
+            archiveArtifacts artifacts: 'reports/*.sarif', fingerprint: true, allowEmptyArchive: true
+            archiveArtifacts artifacts: 'reports/*.html', fingerprint: true, allowEmptyArchive: true
         }
     }
 }

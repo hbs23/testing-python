@@ -19,8 +19,8 @@ filename = input("Enter filename: ")
 os.system(f"cat {filename}")
 
 # 3. Hardcoded Secrets
-api_key = os.getenv("AK")
-print("API KEY = ",api_key)
+ak = os.getenv("AK")
+print("AK = ",ak)
 #API_KEY = "TESTING"
 # 4. Weak Hash
 user_pass = input("Enter your password: ")

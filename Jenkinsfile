@@ -179,6 +179,7 @@ pipeline {
                     chmod 777 reports
 
                     docker run --rm \
+                        -u 0:0 \
                         -v \$(pwd)/reports:/zap/wrk \
                         --network host \
                         ghcr.io/zaproxy/zaproxy \

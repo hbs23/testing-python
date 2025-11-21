@@ -20,7 +20,7 @@ os.system(f"cat {filename}")
 
 # 3. Hardcoded Secrets
 api_key = os.getenv("API_KEY")
-print("API KEY = ",api_key)
+# print("API KEY = ",api_key)
 #API_KEY = "TESTING"
 # 4. Weak Hash
 user_pass = input("Enter your password: ")

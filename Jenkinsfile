@@ -30,8 +30,7 @@ pipeline {
                     --config "p/owasp-top-ten" \
                     --config "p/secrets" \
                     --sarif --output reports/semgrep.sarif \
-                    --metrics=off \
-                    .
+                    --metrics=off 
                 '''
             }
         }

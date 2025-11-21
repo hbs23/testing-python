@@ -50,6 +50,10 @@ def health():
         return jsonify({"status": "error", "db_error": str(e)}), 500
 
 
+@app.route("/openapi.json", methods=["GET"])
+def openapi_json():
+    return send_file("openapi.yaml", mimetype="application/yaml")
+
 # =========================
 # 1. LOGIN (clean: parameterized + hashed password)
 # =========================

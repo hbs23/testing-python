@@ -186,7 +186,7 @@ pipeline {
                         ghcr.io/zaproxy/zaproxy \
                         zap-baseline.py \
                             -t http://13.212.114.218:9500 \
-                            -r /zap/wrk/zap-report.html \
+                            -r zap-report.html \
                             -I || true
 
                     echo "[DEBUG] Isi folder reports setelah ZAP:"

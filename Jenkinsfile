@@ -174,24 +174,24 @@ pipeline {
         stage('DAST - ZAP Baseline Scan') {
             when { branch 'main' }
             steps {
-                 sh """
+                 sh '''
                     mkdir -p reports
                     chmod 777 reports
 
                     docker run --rm \
                         -u 0:0 \
                         -w /zap/wrk \
-                        -v \$(pwd)/reports:/zap/wrk \
+                        -v $(pwd)/reports:/zap/wrk \
                         --network host \
                         ghcr.io/zaproxy/zaproxy \
                         zap-baseline.py \
                             -t http://13.212.114.218:9500 \
-                            -r zap-report.html \
+                            -r /zap/wrk/zap-report.html \
                             -I || true
 
                     echo "[DEBUG] Isi folder reports setelah ZAP:"
                     ls -lah reports || true
-                """
+                '''
             }
         }
     }

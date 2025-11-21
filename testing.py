@@ -2,6 +2,9 @@ import os
 import sqlite3
 import hashlib
 import pickle
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # 1. SQL Injection
 username = input("Username: ")
@@ -16,7 +19,8 @@ filename = input("Enter filename: ")
 os.system(f"cat {filename}")
 
 # 3. Hardcoded Secrets
-API_KEY = "1234567890-SECRET-KEY"
+api_key = os.getenv("API_KEY")
+print("API KEY = ",api_key)
 #API_KEY = "TESTING"
 # 4. Weak Hash
 user_pass = input("Enter your password: ")

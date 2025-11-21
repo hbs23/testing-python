@@ -2,17 +2,12 @@ pipeline {
     agent any
 
     environment {
+        // contoh: beda ENV untuk app
         APP_ENV = "${env.BRANCH_NAME == 'main' ? 'production' : 'staging'}"
-        
-        DB_HOST = "172.17.0.1"
-        DB_NAME = "hasan_testing_db"
-
-        // PATH untuk semgrep (pipx)
         PATH = "/var/jenkins_home/.local/bin:${env.PATH}"
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 checkout scm
@@ -21,30 +16,21 @@ pipeline {
 
         stage('Build & Test') {
             steps {
-                script {
-                    IMAGE_TAG = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
-                    echo "Building Docker image: vuln-flask-app:${IMAGE_TAG}"
-
-                    sh """
-                    docker build -t vuln-flask-app:${IMAGE_TAG} .
-                    """
-                }
+                sh 'echo "Build & test untuk ${APP_ENV}"'
+                // mvn test / go test / npm test dll
             }
         }
 
-        /* ============================================================
-           SONARQUBE
-        ============================================================ */
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('SonarCube_Testing') {
                     script {
                         def scannerHome = tool 'SonarCube_Scanner_Testing'
                         sh """
-                            "${scannerHome}/bin/sonar-scanner" \
-                                -Dsonar.projectKey=testing-python \
-                                -Dsonar.sources=. \
-                                -Dsonar.python.version=3
+                        "${scannerHome}/bin/sonar-scanner" \
+                            -Dsonar.projectKey=testing-python \
+                            -Dsonar.sources=. \
+                            -Dsonar.python.version=3
                         """
                     }
                 }
@@ -59,67 +45,70 @@ pipeline {
             }
         }
 
-        /* ============================================================
-           SEMGREP
-        ============================================================ */
-        stage('Semgrep - Generate SARIF') {
+        stage('Semgrep - Generate Report SARIF (All Severity)') {
             steps {
                 sh '''
                   mkdir -p reports
+
                   semgrep scan \
                     --config p/security-audit \
                     --config p/owasp-top-ten \
                     --config p/secrets \
-                    --sarif --output reports/semgrep.sarif \
                     --metrics=off \
+                    --sarif --output reports/semgrep.sarif \
                     . || true
                 '''
             }
         }
 
-        stage('Semgrep - Enforce Medium/High') {
+        stage('Semgrep - Enforce Medium/High Only') {
             steps {
                 sh '''
                   semgrep scan \
                     --config p/security-audit \
                     --config p/owasp-top-ten \
                     --config p/secrets \
+                    --metrics=off \
                     --severity WARNING \
                     --severity ERROR \
                     --error \
-                    --metrics=off \
                     .
                 '''
             }
         }
 
-        /* ============================================================
-           DEPLOY STAGING / PRODUCTION
-        ============================================================ */
         stage('Deploy to STAGING') {
-            when { branch 'staging' }
-            steps { echo "Deploy ke STAGING..." }
+            when {
+                branch 'staging'
+            }
+            steps {
+                sh '''
+                  echo "Deploy ke STAGING"
+                  # contoh:
+                  # kubectl --context=staging apply -f k8s/
+                '''
+            }
         }
 
         stage('Deploy to PRODUCTION') {
-            when { branch 'main' }
+            when {
+                branch 'main'
+            }
             steps {
-                echo "Deploy ke PRODUCTION..."
-
+                sh '''
+                  echo "Deploy ke PRODUCTION"
+                  # kubectl --context=production apply -f k8s/
+                '''
                 sshagent(['Server_Jenkins_Demo']) {
                     sh '''
-                      ssh -o StrictHostKeyChecking=no ubuntu@13.212.183.71"
-                        docker run -d -p 9500:9500 --name app-testing vuln-flask-app:${IMAGE_TAG} 
+                      ssh -o StrictHostKeyChecking=no ubuntu@13.212.183.71 " ls -lah && 
+                      docker ps
                       "
                     '''
                 }
             }
         }
     }
-
-    /* ============================================================
-       POST STEPS
-    ============================================================ */
     post {
         always {
             archiveArtifacts artifacts: 'reports/semgrep.sarif', fingerprint: true

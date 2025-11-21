@@ -1,0 +1,262 @@
+import os
+import pickle
+import hashlib
+import subprocess
+import mysql.connector
+from flask import Flask, request, jsonify
+from dotenv import load_dotenv
+
+# =========================
+# WARNING:
+# APLIKASI INI SENGAJA VULNERABLE
+# Hanya untuk LAB / TRAINING DevSecOps
+# JANGAN dipakai di production
+# =========================
+
+# Load .env (untuk local dev).
+# Di CI/CD / Docker, ENV bisa dikasih dari Jenkins / docker-compose.
+load_dotenv()
+
+app = Flask(__name__)
+
+
+# =========================
+# Database Connection (pakai ENV)
+# =========================
+def get_db():
+    conn = mysql.connector.connect(
+        host=os.getenv("DB_HOST", "localhost"),
+        user=os.getenv("DB_USER", "root"),
+        password=os.getenv("DB_PASS", "password"),
+        database=os.getenv("DB_NAME", "demo_app"),
+    )
+    return conn
+
+
+# =========================
+# 1. INSECURE LOGIN (SQL Injection, Broken Auth)
+# =========================
+@app.route("/login", methods=["POST"])
+def login():
+    """
+    Contoh body:
+    {
+      "username": "admin",
+      "password": "admin123"
+    }
+
+    Vulnerability:
+    - SQL Injection (username/password langsung di-embed)
+    - Password plaintext
+    """
+    data = request.get_json() or request.form
+    username = data.get("username", "")
+    password = data.get("password", "")
+
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+
+    # VULN: SQL injection
+    query = f"SELECT * FROM users WHERE username='{username}' AND password='{password}'"
+    cursor.execute(query)
+    user = cursor.fetchone()
+
+    cursor.close()
+    conn.close()
+
+    if user:
+        return jsonify({"message": "Login success", "user": user})
+    else:
+        return jsonify({"message": "Invalid credentials"}), 401
+
+
+# =========================
+# 2. USER DETAIL TANPA AUTH (IDOR / Broken Access Control)
+# =========================
+@app.route("/users/<int:user_id>", methods=["GET"])
+def get_user(user_id):
+    """
+    Vulnerability:
+    - Tidak ada auth / authorization
+    - Siapa pun bisa akses data user lain dengan ganti ID di URL
+    """
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute(f"SELECT id, username, email FROM users WHERE id = {user_id}")
+    user = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if user:
+        return jsonify(user)
+    else:
+        return jsonify({"message": "User not found"}), 404
+
+
+# =========================
+# 3. SEARCH DENGAN SQLi (Injection)
+# =========================
+@app.route("/search", methods=["GET"])
+def search_users():
+    """
+    Contoh: /search?q=admin
+
+    Vulnerability:
+    - SQL Injection via query param 'q'
+    """
+    q = request.args.get("q", "")
+
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+
+    # VULN: SQL injection
+    query = f"SELECT id, username, email FROM users WHERE username LIKE '%{q}%'"
+    cursor.execute(query)
+    results = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return jsonify({"results": results})
+
+
+# =========================
+# 4. COMMAND INJECTION
+# =========================
+@app.route("/run", methods=["POST"])
+def run_command():
+    """
+    Contoh body:
+    {
+      "cmd": "ls -lah"
+    }
+
+    Vulnerability:
+    - Command Injection: input user dikirim ke shell tanpa validasi
+    """
+    data = request.get_json() or request.form
+    cmd = data.get("cmd", "")
+
+    # VULN: langsung kirim ke shell
+    try:
+        output = subprocess.getoutput(cmd)
+        return jsonify({"cmd": cmd, "output": output})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# =========================
+# 5. WEAK HASH + NO AUTH (Cryptographic Failure / Broken Auth)
+# =========================
+@app.route("/change_password", methods=["POST"])
+def change_password():
+    """
+    Contoh:
+    {
+      "user_id": 1,
+      "new_password": "admin123"
+    }
+
+    Vulnerability:
+    - Tidak ada auth (siapa pun bisa ganti password user mana saja)
+    - Password di-hash pakai MD5 (lemah)
+    """
+    data = request.get_json() or request.form
+    user_id = data.get("user_id")
+    new_password = data.get("new_password", "")
+
+    if not user_id:
+        return jsonify({"message": "user_id is required"}), 400
+
+    # Weak hash: MD5 (insecure)
+    hashed = hashlib.md5(new_password.encode()).hexdigest()
+
+    conn = get_db()
+    cursor = conn.cursor()
+    query = f"UPDATE users SET password='{hashed}' WHERE id={user_id}"
+    cursor.execute(query)
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return jsonify({"message": "Password changed (insecure demo using MD5)"})
+
+
+# =========================
+# 6. INSECURE FILE UPLOAD (Path Traversal, No Validation)
+# =========================
+@app.route("/upload", methods=["POST"])
+def upload_file():
+    """
+    Form-data:
+    - file: <file>
+
+    Vulnerability:
+    - Tidak ada limit size
+    - Tidak cek extension
+    - Nama file langsung dipakai (path traversal possible)
+    """
+    if "file" not in request.files:
+        return jsonify({"message": "No file part"}), 400
+
+    f = request.files["file"]
+    if f.filename == "":
+        return jsonify({"message": "No selected file"}), 400
+
+    upload_dir = "uploads"
+    os.makedirs(upload_dir, exist_ok=True)
+
+    # VULN: memakai filename user secara langsung
+    save_path = os.path.join(upload_dir, f.filename)
+    f.save(save_path)
+
+    return jsonify({"message": "File uploaded", "path": save_path})
+
+
+# =========================
+# 7. INSECURE DESERIALIZATION (pickle)
+# =========================
+@app.route("/deserialize", methods=["POST"])
+def insecure_deserialize():
+    """
+    Contoh:
+    {
+      "data": "cos\nsystem\n(S'echo hello'\ntR."
+    }
+
+    Vulnerability:
+    - Pickle deserialization: bisa arbitrary code execution
+    """
+    data = request.get_json() or request.form
+    serialized = data.get("data", "")
+
+    try:
+        # VULN: pickle.loads terhadap input user
+        obj = pickle.loads(serialized.encode())
+        return jsonify({"decoded": str(obj)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+# =========================
+# 8. CONFIG LEAK (Sensitive Data Exposure)
+# =========================
+@app.route("/config", methods=["GET"])
+def config_leak():
+    """
+    Vulnerability:
+    - Meng-expose env & config sensitif
+    """
+    config = {
+        "db_host": os.getenv("DB_HOST", "localhost"),
+        "db_user": os.getenv("DB_USER", "root"),
+        "db_pass": os.getenv("DB_PASS", "password"),  # SENGAJA ditunjukkan (demo)
+        "db_name": os.getenv("DB_NAME", "demo_app"),
+        "app_env": os.getenv("APP_ENV", "development"),
+    }
+    return jsonify(config)
+
+
+if __name__ == "__main__":
+    # Jangan pakai debug di production (ini demo)
+    app.run(host="0.0.0.0", port=9500, debug=True)

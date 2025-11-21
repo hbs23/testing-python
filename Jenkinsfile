@@ -176,6 +176,7 @@ pipeline {
             steps {
                 sh """
                     mkdir -p reports
+                    chmod 777 reports
 
                     docker run --rm \
                         -v \$(pwd)/reports:/zap/wrk \

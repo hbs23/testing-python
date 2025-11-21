@@ -9,6 +9,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app.py .
+COPY openapi.yaml .
 
 RUN groupadd -r app && useradd -r -g app app
 RUN chown -R app:app /app

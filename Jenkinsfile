@@ -9,6 +9,7 @@ pipeline {
 
         // PATH untuk semgrep (pipx)
         PATH = "/var/jenkins_home/.local/bin:${env.PATH}"
+        IMAGE_TAG = ""
     }
 
     stages {
@@ -22,11 +23,11 @@ pipeline {
         stage('Build & Test') {
             steps {
                 script {
-                    IMAGE_TAG = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
-                    echo "Building Docker image: vuln-flask-app:${IMAGE_TAG}"
+                    env.IMAGE_TAG = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
+                    echo "Building Docker image: vuln-flask-app:${env.IMAGE_TAG}"
 
                     sh """
-                    docker build -t vuln-flask-app:${IMAGE_TAG} .
+                    docker build -t vuln-flask-app:${env.IMAGE_TAG} .
                     """
                 }
             }
@@ -107,11 +108,13 @@ pipeline {
                 echo "Deploy ke PRODUCTION..."
 
                 sshagent(['SSH_Ubuntu_Server']) {
-                    sh '''
-                      ssh -o StrictHostKeyChecking=no ubuntu@13.212.183.71"
-                        docker run -d -p 9500:9500 --name app-testing vuln-flask-app:${IMAGE_TAG} 
-                      "
-                    '''
+                    sh """
+                        ssh -o StrictHostKeyChecking=no ubuntu@13.212.183.71 '
+                            docker stop app-testing || true &&
+                            docker rm app-testing || true &&
+                            docker run -d -p 9500:9500 --name app-testing vuln-flask-app:${env.IMAGE_TAG}
+                    '
+                    """
                 }
             }
         }

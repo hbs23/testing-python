@@ -180,7 +180,7 @@ pipeline {
                     docker run --rm \
                         -v \$(pwd)/reports:/zap/wrk \
                         --network host \
-                        owasp/zap2docker-stable \
+                        ghcr.io/zaproxy/zaproxy \
                         zap-baseline.py \
                             -t http://13.212.114.218:9500 \
                             -r zap-report.html \

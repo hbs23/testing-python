@@ -52,7 +52,7 @@ def health():
 
 @app.route("/openapi.json", methods=["GET"])
 def openapi_json():
-    return send_file("openapi.yaml", mimetype="application/yaml")
+    return send_file("openapi.yaml", mimetype="application/json")
 
 # =========================
 # 1. LOGIN (clean: parameterized + hashed password)

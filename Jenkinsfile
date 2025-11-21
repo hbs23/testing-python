@@ -174,29 +174,21 @@ pipeline {
         stage('DAST - ZAP Baseline Scan') {
             when { branch 'main' }
             steps {
-                 sh '''
+                  sh '''
                     mkdir -p reports
+                    chmod 777 reports
 
-                    # Bersihin container lama kalau ada
-                    docker rm -f zap-baseline-container || true
-
-                    # Jalanin ZAP baseline sebagai container terpisah
-                    docker run --name zap-baseline-container \
-                        --network host \
+                    docker run --rm \
+                        -u 0:0 \
+                        -v "$(pwd)/reports:/zap/wrk" \
                         zaproxy/zap-stable \
-                        zap-baseline.py \
+                        zap-api-scan.py \
                             -t http://13.212.114.218:9500 \
-                            -r zap-report.html \
-                            -I || true
+                            -f openapi \
+                            -u http://13.212.114.218:9500/openapi.json \
+                            -J zap-api-report.json || true
 
-                    # Coba copy report dari dalam container ZAP ke workspace Jenkins (folder reports/)
-                    docker cp zap-baseline-container:/zap/wrk/zap-report.html reports/zap-report.html 2>/dev/null || \
-                    docker cp zap-baseline-container:/zap-report.html reports/zap-report.html 2>/dev/null || true
-
-                    # Hapus container ZAP
-                    docker rm -f zap-baseline-container || true
-
-                    echo "[DEBUG] Isi folder reports setelah ZAP:"
+                    echo "[DEBUG] Isi folder reports setelah ZAP API:"
                     ls -lah reports || true
                 '''
             }

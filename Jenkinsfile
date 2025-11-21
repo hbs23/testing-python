@@ -183,7 +183,7 @@ pipeline {
                         -w /zap/wrk \
                         -v $(pwd)/reports:/zap/wrk \
                         --network host \
-                        ghcr.io/zaproxy/zaproxy \
+                        zaproxy/zap-stable \
                         zap-baseline.py \
                             -t http://13.212.114.218:9500 \
                             -r zap-report.html \

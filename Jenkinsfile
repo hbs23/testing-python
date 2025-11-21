@@ -108,7 +108,7 @@ pipeline {
 
                 sshagent(['SSH_Ubuntu_Server']) {
                     sh """
-                        ssh -o StrictHostKeyChecking=no ubuntu@13.212.183.71 '
+                        ssh -o StrictHostKeyChecking=no ubuntu@13.212.114.218 '
                             docker stop app-testing || true &&
                             docker rm app-testing || true &&
                             docker run -d -p 9500:9500 --name app-testing vuln-flask-app:latest

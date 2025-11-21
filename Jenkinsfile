@@ -90,7 +90,8 @@ pipeline {
                             "${scannerHome}/bin/sonar-scanner" \
                                 -Dsonar.projectKey=testing-python \
                                 -Dsonar.sources=. \
-                                -Dsonar.python.version=3
+                                -Dsonar.python.version=3 \
+                                -Dsonar.exclusions=reports/**,**/*.html,**/*.js
                         """
                     }
                 }
@@ -117,6 +118,7 @@ pipeline {
                         --config p/security-audit \
                         --config p/owasp-top-ten \
                         --config p/secrets \
+                        --exclude reports \
                         --sarif --output reports/semgrep.sarif \
                         --metrics=off \
                         . || true
@@ -131,6 +133,7 @@ pipeline {
                         --config p/security-audit \
                         --config p/owasp-top-ten \
                         --config p/secrets \
+                        --exclude reports \
                         --severity WARNING \
                         --severity ERROR \
                         --error \

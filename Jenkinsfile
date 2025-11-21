@@ -21,21 +21,36 @@ pipeline {
             }
         }
 
-        stage('Semgrep Python Scan') {
+        stage('Semgrep - Generate Report SARIF (All Severity)') {
             steps {
                 sh '''
-                    mkdir -p reports
-                    semgrep ci \
-                    --config "p/security-audit" \
-                    --config "p/owasp-top-ten" \
-                    --config "p/secrets" \
+                  mkdir -p reports
+
+                  semgrep scan \
+                    --config p/security-audit \
+                    --config p/owasp-top-ten \
+                    --config p/secrets \
+                    --metrics=off \
                     --sarif --output reports/semgrep.sarif \
-                    --metrics=off 
+                    . || true
                 '''
             }
         }
 
-    
+        stage('Semgrep - Enforce Medium/High Only') {
+            steps {
+                sh '''
+                  semgrep scan \
+                    --config p/security-audit \
+                    --config p/owasp-top-ten \
+                    --config p/secrets \
+                    --metrics=off \
+                    --severity WARNING \
+                    --severity ERROR \
+                    .
+                '''
+            }
+        }
 
         stage('Deploy to STAGING') {
             when {

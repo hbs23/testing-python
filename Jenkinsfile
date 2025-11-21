@@ -20,11 +20,21 @@ pipeline {
             }
         }
 
-        stage('Security Scan') {
+        stage('Semgrep Python Scan') {
             steps {
-                sh 'echo "Jalankan Semgrep / Sonar di ${APP_ENV}"'
+                sh '''
+                    semgrep ci \
+                    --config "p/security-audit" \
+                    --config "p/owasp-top-ten" \
+                    --config "p/secrets" \
+                    --lang python \
+                    --metrics=off \
+                    .
+                '''
             }
         }
+
+    
 
         stage('Deploy to STAGING') {
             when {

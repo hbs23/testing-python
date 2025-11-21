@@ -48,6 +48,11 @@ pipeline {
                   echo "Deploy ke PRODUCTION"
                   # kubectl --context=production apply -f k8s/
                 '''
+                sshagent(['Server_Jenkins_Demo']) {
+                    sh '''
+                      ssh -o StrictHostKeyChecking=no ubuntu@13.212.183.71 "ls -lah"
+                    '''
+                }
             }
         }
     }

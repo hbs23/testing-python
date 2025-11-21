@@ -47,6 +47,7 @@ pipeline {
                     --metrics=off \
                     --severity WARNING \
                     --severity ERROR \
+                    --error \
                     .
                 '''
             }

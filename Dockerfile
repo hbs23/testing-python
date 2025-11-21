@@ -9,7 +9,11 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app.py .
-#COPY .env .   # kalau local only, kalau CI hapus
+
+RUN groupadd -r app && useradd -r -g app app
+RUN chown -R app:app /app
+
+USER app
 
 EXPOSE 9500
 

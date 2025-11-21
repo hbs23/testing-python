@@ -21,6 +21,27 @@ pipeline {
             }
         }
 
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('SonarCube_Testing') {
+                    sh '''
+                      sonar-scanner \
+                        -Dsonar.projectKey=testing-python \
+                        -Dsonar.sources=. \
+                        -Dsonar.python.version=3
+                    '''
+                }
+            }
+        }
+
+        stage('SonarQube Quality Gate') {
+            steps {
+                timeout(time: 2, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
         stage('Semgrep - Generate Report SARIF (All Severity)') {
             steps {
                 sh '''

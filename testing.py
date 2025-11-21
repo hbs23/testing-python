@@ -21,7 +21,6 @@ os.system(f"cat {filename}")
 # 3. Hardcoded Secrets
 ak = os.getenv("AK")
 print("AK = ",ak)
-#API_KEY = "TESTING"
 # 4. Weak Hash
 user_pass = input("Enter your password: ")
 hashed = hashlib.md5(user_pass.encode()).hexdigest()

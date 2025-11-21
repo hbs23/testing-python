@@ -16,8 +16,8 @@ filename = input("Enter filename: ")
 os.system(f"cat {filename}")
 
 # 3. Hardcoded Secrets
-API_KEY = "1234567890-SECRET-KEY"
-
+#API_KEY = "1234567890-SECRET-KEY"
+API_KEY = "sk_live_51M29Lbq29fb90sFb90fsbfUFSNYgfb091yfB"
 # 4. Weak Hash
 user_pass = input("Enter your password: ")
 hashed = hashlib.md5(user_pass.encode()).hexdigest()

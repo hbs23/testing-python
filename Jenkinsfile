@@ -24,11 +24,12 @@ pipeline {
         stage('Semgrep Python Scan') {
             steps {
                 sh '''
+                    mkdir -p reports
                     semgrep ci \
                     --config "p/security-audit" \
                     --config "p/owasp-top-ten" \
                     --config "p/secrets" \
-                    --lang python \
+                    --sarif --output reports/semgrep.sarif \
                     --metrics=off \
                     .
                 '''
@@ -67,6 +68,11 @@ pipeline {
                     '''
                 }
             }
+        }
+    }
+    post {
+        always {
+            archiveArtifacts artifacts: 'reports/semgrep.sarif', fingerprint: true
         }
     }
 }

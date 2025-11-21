@@ -187,16 +187,18 @@ pipeline {
             steps {
                   sh '''
                     mkdir -p reports
+                    chmod 777 reports
 
                     echo "[ZAP] create container..."
                     CID=$(docker create \
                     -u 0:0 \
+                    -v zapwork:/zap/wrk \
                     zaproxy/zap-stable \
                     zap-api-scan.py \
                         -t http://13.212.114.218:9500/openapi.json \
                         -f openapi \
-                        -J /zap/wrk/zap-api-report.json \
-                        -r /zap/wrk/zap-api-report.html)
+                        -J zap-api-report.json \
+                        -r zap-api-report.html)
 
                     echo "[ZAP] start scan (ID=$CID)..."
                     docker start -a "$CID" || true

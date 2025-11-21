@@ -51,7 +51,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    echo "Building Docker image vuln-flask-app:${env.IMAGE_TAG}"
+                    echo "Building Docker image vuln-flask-app:latest"
                     sh """
                         docker build -t vuln-flask-app:${env.IMAGE_TAG} .
                     """
@@ -157,13 +157,24 @@ pipeline {
                 echo "Deploy ke PRODUCTION menggunakan vuln-flask-app:${env.IMAGE_TAG}"
 
                 sshagent(['SSH_Ubuntu_Server']) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no ubuntu@13.212.114.218 '
-                            docker stop app-testing || true &&
-                            docker rm app-testing || true &&
-                            docker run -d -p 9500:9500 --name app-testing vuln-flask-app:${env.IMAGE_TAG}
-                        '
-                    """
+                    withCredentials([usernamePassword(
+                        credentialsId: 'hasan_testing_MySQL', 
+                        usernameVariable: 'DB_USER',
+                        passwordVariable: 'DB_PASS'
+                    )]) {
+                        sh """
+                            ssh -o StrictHostKeyChecking=no ubuntu@13.212.114.218 '
+                                docker stop app-testing || true &&
+                                docker rm app-testing || true &&
+                                docker run -d -p 9500:9500 --name app-testing \
+                                    -e DB_HOST=${DB_HOST} \
+                                    -e DB_NAME=${DB_NAME} \
+                                    -e DB_USER=${DB_USER} \
+                                    -e DB_PASS=${DB_PASS} \
+                                    vuln-flask-app:${IMAGE_TAG}
+                            '
+                        """
+                    }
                 }
             }
         }
@@ -171,22 +182,21 @@ pipeline {
         /* ============================================================
            ZAP DAST BASELINE
         ============================================================ */
-        stage('DAST - ZAP Baseline Scan') {
+        stage('DAST - ZAP API Scan') {
             when { branch 'main' }
             steps {
                   sh '''
                     mkdir -p reports
                     chmod 777 reports
 
-                    docker run --rm \
-                        -u 0:0 \
-                        -v "$(pwd)/reports:/zap/wrk" \
-                        zaproxy/zap-stable \
-                        zap-api-scan.py \
-                            -t http://13.212.114.218:9500 \
-                            -f openapi \
-                            -u http://13.212.114.218:9500/openapi.json \
-                            -J zap-api-report.json || true
+                   docker run --rm \
+                    -u 0:0 \
+                    -v "$(pwd)/reports:/zap/wrk" \
+                    zaproxy/zap-stable \
+                    zap-api-scan.py \
+                        -t http://13.212.114.218:9500/openapi.json \
+                        -f openapi \
+                        -J zap-api-report.json || true
 
                     echo "[DEBUG] Isi folder reports setelah ZAP API:"
                     ls -lah reports || true

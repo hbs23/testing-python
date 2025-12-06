@@ -80,6 +80,14 @@ pipeline {
 
         /* ============================================================
            SONARQUBE ANALYSIS
+           sh """
+                "${scannerHome}/bin/sonar-scanner" \
+                -Dsonar.projectKey=demo-hana \
+                -Dsonar.sources=. \
+                -Dsonar.branch.name=${env.BRANCH_NAME} \
+                -Dsonar.scm.revision=${env.GIT_COMMIT} \
+                -Dsonar.python.version=3
+            """
         ============================================================ */
         stage('SonarQube Analysis') {
             steps {

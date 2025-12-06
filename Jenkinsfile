@@ -198,7 +198,7 @@ pipeline {
                     -v zapwork:/zap/wrk \
                     zaproxy/zap-stable \
                     zap-api-scan.py \
-                        -t http://13.212.114.218:9500/openapi.json \
+                        -t http://172.20.10.2:9500/openapi.json \
                         -f openapi \
                         -J zap-api-report.json \
                         -r zap-api-report.html)

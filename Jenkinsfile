@@ -85,7 +85,7 @@ pipeline {
             steps {
                 withSonarQubeEnv('demo_sonarqube') {
                     script {
-                        def scannerHome = tool 'demo_Scanner_sonarqube'
+                        def scannerHome = tool 'demo_sonarqube'
                         sh """
                             "${scannerHome}/bin/sonar-scanner" \
                                 -Dsonar.projectKey=demo-hana \

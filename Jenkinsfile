@@ -6,7 +6,7 @@ pipeline {
         
         // DB info (secretnya jangan taruh sini)
         DB_HOST = "172.17.0.1"
-        DB_NAME = "hasan_testing_db"
+        DB_NAME = "demo_app"
 
         // PATH untuk semgrep (pipx)
         PATH = "/var/jenkins_home/.local/bin:${env.PATH}"
@@ -83,12 +83,12 @@ pipeline {
         ============================================================ */
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('SonarCube_Testing') {
+                withSonarQubeEnv('demo_sonarqube') {
                     script {
-                        def scannerHome = tool 'SonarCube_Scanner_Testing'
+                        def scannerHome = tool 'demo_Scanner_sonarqube'
                         sh """
                             "${scannerHome}/bin/sonar-scanner" \
-                                -Dsonar.projectKey=testing-python \
+                                -Dsonar.projectKey=demo-hana \
                                 -Dsonar.sources=. \
                                 -Dsonar.python.version=3 \
                                 -Dsonar.exclusions=reports/**,**/*.html,**/*.js
@@ -159,14 +159,14 @@ pipeline {
             steps {
                 echo "Deploy ke PRODUCTION menggunakan vuln-flask-app:${env.IMAGE_TAG}"
 
-                sshagent(['SSH_Ubuntu_Server']) {
+                sshagent(['demo_ssh']) {
                     withCredentials([usernamePassword(
-                        credentialsId: 'hasan_testing_MySQL', 
+                        credentialsId: 'demo_mysql', 
                         usernameVariable: 'DB_USER',
                         passwordVariable: 'DB_PASS'
                     )]) {
                         sh """
-                            ssh -o StrictHostKeyChecking=no ubuntu@13.212.114.218 '
+                            ssh -o StrictHostKeyChecking=no ubuntu@172.20.10.2 '
                                 docker stop app-testing || true &&
                                 docker rm app-testing || true &&
                                 docker run -d -p 9500:9500 --name app-testing \
